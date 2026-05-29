@@ -1,8 +1,9 @@
 "use client"
 
-import { WorkoutDaySchema, workoutDayJsonSchema, type GeneratedDay } from "./programme-schema"
+import { WorkoutDaySchema, type GeneratedDay } from "./programme-schema"
 import { createClient } from "@/lib/supabase/client"
 import type { Tables } from "@/lib/supabase/types"
+import { z } from "zod"
 
 type UserProfile = Tables<"users">
 
@@ -24,96 +25,75 @@ export async function getRecentWorkoutTypes(): Promise<string[]> {
   return (data ?? []).map(w => w.workout_type ?? "rest").filter(Boolean)
 }
 
-function buildDayPrompt(
-  profile: UserProfile,
-  dayOffset: number,
-  weekNumber: number,
-  recentContext: string[],
-  adaptationSummary?: string,
-): string {
+export function buildWeekPrompt(profile: UserProfile, recentHistory: string[]): string {
   const level = EXPERIENCE_LEVEL[profile.lifting_frequency ?? "Never"] ?? "beginner"
-  const areasToAvoid = profile.areas_to_avoid?.join(", ") || "none"
+  const areasToAvoid = profile.areas_to_avoid?.filter(a => a !== "None").join(", ") || "none"
   const cardioTypes = profile.cardio_types?.join(", ") || "none"
-  const recentLine = recentContext.length
-    ? recentContext.map(t => `- ${t}`).join("\n")
-    : "- none yet"
-  const adaptLine = weekNumber > 1 && dayOffset === 0 && adaptationSummary
-    ? `\nPrevious week performance:\n${adaptationSummary}`
-    : ""
+  const recentLine = recentHistory.length
+    ? recentHistory.map(t => `- ${t}`).join("\n")
+    : "- none"
 
-  return `Generate day ${dayOffset + 1} of 7 (week ${weekNumber}):
-Goal: ${profile.goal}${profile.secondary_goal ? `, secondary: ${profile.secondary_goal}` : ""}
-Age: ${profile.age}, Sex: ${profile.sex}, Job: ${profile.job_type}
-Lifting: ${profile.lifting_frequency} → level: ${level}
-Cardio: ${profile.cardio_frequency}, types: ${cardioTypes}
-Height: ${profile.height}cm, Weight: ${profile.weight}kg
-${profile.body_fat_percentage ? `Body fat: ${profile.body_fat_percentage}%` : ""}
-Areas to avoid: ${areasToAvoid}
+  return `You are a personal trainer. Generate a 7-day workout programme as a JSON array.
 
-Recent sessions (most recent first):
+User profile:
+- Goal: ${profile.goal}${profile.secondary_goal ? `, secondary: ${profile.secondary_goal}` : ""}
+- Age: ${profile.age}, Sex: ${profile.sex}, Job: ${profile.job_type}
+- Lifting: ${profile.lifting_frequency} → level: ${level}
+- Cardio: ${profile.cardio_frequency}, types: ${cardioTypes}
+- Height: ${profile.height}cm, Weight: ${profile.weight}kg${profile.body_fat_percentage ? `\n- Body fat: ${profile.body_fat_percentage}%` : ""}
+- Areas to avoid: ${areasToAvoid}
+
+Recent workouts (most recent first):
 ${recentLine}
-${adaptLine}`
-}
 
-const SYSTEM_PROMPT = `You are a personal trainer AI. Generate ONE day's workout as JSON.
-Equipment: full gym. Output only valid JSON matching the schema.
+Output a JSON array of exactly 7 objects — one per day, starting from today. Use this exact structure:
+
+[
+  {
+    "workout_type": "push" | "pull" | "legs" | "full_body" | "cardio" | "rest",
+    "exercises": [
+      {
+        "name": "string",
+        "muscle_group": "string",
+        "equipment": "string",
+        "target_sets": 1–8,
+        "target_reps": 1–30,
+        "target_weight_kg": 0–999
+      }
+    ]
+  }
+]
+
 Rules:
-- Rest days: workout_type "rest", no exercises field
-- Training days: at least 3 exercises
-- Weight 0 means bodyweight
-- Respect areas_to_avoid strictly
-- Avoid training the same muscle groups as the recent sessions listed`
-
-export async function generateDay(
-  profile: UserProfile,
-  dayOffset: number,
-  weekNumber: number,
-  recentContext: string[],
-  adaptationSummary?: string,
-): Promise<GeneratedDay> {
-  const prompt = buildDayPrompt(profile, dayOffset, weekNumber, recentContext, adaptationSummary)
-
-  for (let attempt = 0; attempt < 2; attempt++) {
-    let session: any = null
-    try {
-      session = await (globalThis as any).ai.languageModel.create({
-        systemPrompt: SYSTEM_PROMPT,
-        responseConstraint: workoutDayJsonSchema,
-      })
-      const hint = attempt > 0
-        ? "Previous attempt produced invalid output. Retry strictly following the schema.\n\n"
-        : ""
-      const raw = await session.prompt(hint + prompt)
-      const parsed = JSON.parse(raw)
-      const validated = WorkoutDaySchema.parse(parsed)
-      return { ...validated, day_offset: dayOffset }
-    } catch {
-      // fall through to next attempt or rest day fallback
-    } finally {
-      session?.destroy()
-    }
-  }
-
-  return { workout_type: "rest", day_offset: dayOffset }
+- Omit the exercises field entirely on rest days
+- Training days must have at least 3 exercises
+- target_weight_kg of 0 means bodyweight
+- Respect areas_to_avoid strictly — do not programme exercises that stress those areas
+- Avoid repeating the same muscle groups as the recent workouts listed above
+- Output only the raw JSON array — no markdown, no explanation, no code fences`
 }
 
-export async function generateWeek(
-  profile: UserProfile,
-  weekNumber: number,
-  recentHistory: string[],
-  adaptationSummary?: string,
-  onDayComplete?: (dayOffset: number) => void,
-): Promise<GeneratedDay[]> {
-  const days: GeneratedDay[] = []
+const WeekSchema = z.array(WorkoutDaySchema).min(7).max(7)
 
-  for (let offset = 0; offset < 7; offset++) {
-    const generatedTypes = days.map(d => d.workout_type)
-    const context = [...recentHistory, ...generatedTypes].slice(-3)
+export type ValidationResult =
+  | { ok: true; days: GeneratedDay[] }
+  | { ok: false; error: string }
 
-    const day = await generateDay(profile, offset, weekNumber, context, adaptationSummary)
-    days.push(day)
-    onDayComplete?.(offset)
+export function validateWeekJson(raw: string): ValidationResult {
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(raw)
+  } catch {
+    return { ok: false, error: "Not valid JSON — paste the raw array from Claude, no markdown." }
   }
 
-  return days
+  const result = WeekSchema.safeParse(parsed)
+  if (!result.success) {
+    const first = result.error.issues[0]
+    const path = first.path.length ? ` (${first.path.join(".")})` : ""
+    return { ok: false, error: `${first.message}${path}` }
+  }
+
+  const days: GeneratedDay[] = result.data.map((day, i) => ({ ...day, day_offset: i }))
+  return { ok: true, days }
 }

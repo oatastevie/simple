@@ -1,6 +1,7 @@
 export type ChromeAIStatus = "available" | "downloading" | "unavailable"
 
 export async function checkChromeAI(): Promise<ChromeAIStatus> {
+  if (process.env.NEXT_PUBLIC_AI_DEV_BYPASS === "true") return "available"
   if (!("ai" in globalThis)) return "unavailable"
   try {
     const caps = await (globalThis as any).ai.languageModel.capabilities()
