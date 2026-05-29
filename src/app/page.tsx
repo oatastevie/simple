@@ -90,7 +90,7 @@ export default async function Home() {
     <div className="min-h-screen px-4 pt-8 pb-10 max-w-lg mx-auto w-full">
       <div className="flex items-baseline justify-between mb-8">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Week {programme.week_number}</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">This week</h1>
           {todayWorkout && todayWorkout.workout_type !== "rest" && (
             <p className="text-sm text-muted-foreground mt-0.5">
               Today · {todayWorkout.workout_type}
@@ -100,12 +100,14 @@ export default async function Home() {
             <p className="text-sm text-muted-foreground mt-0.5">Rest day</p>
           )}
         </div>
-        <a
-          href="/onboarding/generating"
-          className="text-sm text-muted-foreground underline underline-offset-4"
-        >
-          Regenerate
-        </a>
+        <div className="flex gap-4">
+          <a href="/history" className="text-sm text-muted-foreground underline underline-offset-4">
+            History
+          </a>
+          <a href="/onboarding/generating" className="text-sm text-muted-foreground underline underline-offset-4">
+            Regenerate
+          </a>
+        </div>
       </div>
 
       <div className="space-y-3">

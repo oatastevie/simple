@@ -61,6 +61,85 @@ export async function skipExercise(exerciseId: string, workoutId: string): Promi
   revalidatePath(`/workout/${workoutId}`)
 }
 
+// Copies a past workout as today's workout, skipping today's planned one.
+// Returns the new workout's ID.
+export async function redoWorkout(pastWorkoutId: string): Promise<string> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect("/auth/login")
+
+  const today = new Date().toISOString().split("T")[0]
+
+  // Get the past workout's exercises
+  const { data: pastExercises } = await supabase
+    .from("exercises")
+    .select("name, muscle_group, equipment, target_sets, target_reps, target_weight_kg, order_index")
+    .eq("workout_id", pastWorkoutId)
+    .order("order_index", { ascending: true })
+
+  if (!pastExercises?.length) throw new Error("No exercises found in that workout")
+
+  // Get the past workout's type
+  const { data: pastWorkout } = await supabase
+    .from("workouts")
+    .select("workout_type")
+    .eq("id", pastWorkoutId)
+    .single()
+
+  // Find the active programme
+  const { data: programme } = await supabase
+    .from("programme")
+    .select("id")
+    .eq("user_id", user.id)
+    .eq("is_active", true)
+    .single()
+
+  if (!programme) throw new Error("No active programme")
+
+  // Skip today's planned workout (if any, and not already completed/skipped)
+  await supabase
+    .from("workouts")
+    .update({ skipped_at: new Date().toISOString() })
+    .eq("programme_id", programme.id)
+    .eq("scheduled_date", today)
+    .is("completed_at", null)
+    .is("skipped_at", null)
+
+  // Create a new workout for today
+  const { data: newWorkout, error } = await supabase
+    .from("workouts")
+    .insert({
+      user_id: user.id,
+      programme_id: programme.id,
+      scheduled_date: today,
+      workout_type: pastWorkout?.workout_type ?? "full_body",
+      ai_generated: false,
+    } as any)
+    .select("id")
+    .single()
+
+  if (error || !newWorkout) throw new Error(error?.message ?? "Failed to create workout")
+
+  // Copy exercises
+  await supabase.from("exercises").insert(
+    pastExercises.map((ex, i) => ({
+      workout_id: newWorkout.id,
+      name: ex.name,
+      muscle_group: ex.muscle_group,
+      equipment: ex.equipment,
+      target_sets: ex.target_sets,
+      target_reps: ex.target_reps,
+      target_weight_kg: ex.target_weight_kg,
+      order_index: i,
+      completed: false,
+      skipped: false,
+    }))
+  )
+
+  revalidatePath("/")
+  return newWorkout.id
+}
+
 export async function completeWorkout(workoutId: string): Promise<void> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
