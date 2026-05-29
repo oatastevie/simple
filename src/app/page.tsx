@@ -15,6 +15,15 @@ export default async function Home() {
 
   if (!profile) redirect("/onboarding")
 
+  const { data: programme } = await supabase
+    .from("programme")
+    .select("id")
+    .eq("user_id", user.id)
+    .eq("is_active", true)
+    .single()
+
+  if (!programme) redirect("/onboarding/generating")
+
   // TODO: home screen
   return (
     <div className="min-h-screen flex items-center justify-center">

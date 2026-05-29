@@ -64,7 +64,7 @@ export default function OnboardingFlow() {
 
   async function handleSubmit() {
     await submitOnboarding(data)
-    router.push("/")
+    router.push("/onboarding/generating")
   }
 
   const canAdvance = (() => {

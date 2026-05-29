@@ -213,6 +213,7 @@ export type Database = {
           programme_id: string | null
           scheduled_date: string | null
           user_id: string | null
+          workout_type: string | null
         }
         Insert: {
           ai_generated?: boolean | null
@@ -223,6 +224,7 @@ export type Database = {
           programme_id?: string | null
           scheduled_date?: string | null
           user_id?: string | null
+          workout_type?: string | null
         }
         Update: {
           ai_generated?: boolean | null
@@ -233,6 +235,7 @@ export type Database = {
           programme_id?: string | null
           scheduled_date?: string | null
           user_id?: string | null
+          workout_type?: string | null
         }
         Relationships: [
           {
