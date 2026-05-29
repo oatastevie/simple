@@ -5,6 +5,15 @@ import { redirect } from "next/navigation"
 import { revalidatePath } from "next/cache"
 import type { GeneratedDay } from "@/lib/ai/programme-schema"
 
+// UTC-safe date arithmetic on YYYY-MM-DD strings.
+// Avoids the local-time → toISOString() pitfall that shifts dates in non-UTC zones.
+function shiftDate(dateStr: string, days: number): string {
+  const [y, m, d] = dateStr.split("-").map(Number)
+  const date = new Date(Date.UTC(y, m - 1, d))
+  date.setUTCDate(date.getUTCDate() + days)
+  return date.toISOString().split("T")[0]
+}
+
 export async function saveProgramme(
   days: GeneratedDay[],
   weekNumber: number,
@@ -13,7 +22,8 @@ export async function saveProgramme(
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect("/auth/login")
 
-  const today = new Date()
+  // Use UTC date string — same canonical form used everywhere else
+  const todayStr = new Date().toISOString().split("T")[0]
 
   await supabase
     .from("programme")
@@ -36,9 +46,7 @@ export async function saveProgramme(
   if (progError || !programme) throw new Error(progError?.message ?? "Failed to create programme")
 
   for (const day of days) {
-    const scheduledDate = new Date(today)
-    scheduledDate.setDate(today.getDate() + day.day_offset)
-    const dateStr = scheduledDate.toISOString().split("T")[0]
+    const dateStr = shiftDate(todayStr, day.day_offset)
 
     const { data: workout, error: wError } = await supabase
       .from("workouts")
@@ -116,11 +124,9 @@ export async function skipWorkout(
 
       // Shift sequentially (ascending) so dates never collide mid-update
       for (const w of future) {
-        const d = new Date(w.scheduled_date! + "T00:00:00")
-        d.setDate(d.getDate() - 1)
         await supabase
           .from("workouts")
-          .update({ scheduled_date: d.toISOString().split("T")[0] })
+          .update({ scheduled_date: shiftDate(w.scheduled_date!, -1) })
           .eq("id", w.id)
       }
 
