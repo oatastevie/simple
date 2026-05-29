@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useTransition } from "react"
+import Link from "next/link"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { skipWorkout } from "@/app/actions/programme"
@@ -122,14 +123,31 @@ export default function DayCard({
         </p>
       )}
 
-      {/* Skip UI */}
-      {canSkip && !confirming && (
-        <button
-          className="mt-3 text-xs text-muted-foreground underline underline-offset-2"
-          onClick={() => setConfirming(true)}
-        >
-          Skip this workout
-        </button>
+      {/* Links */}
+      {!isRest && !isSkipped && !completedAt && (
+        <div className="mt-3 flex items-center justify-between">
+          <Link
+            href={`/workout/${workoutId}`}
+            className="text-xs font-medium underline underline-offset-2"
+          >
+            {isToday ? "Start workout →" : "View workout →"}
+          </Link>
+          {canSkip && !confirming && (
+            <button
+              className="text-xs text-muted-foreground underline underline-offset-2"
+              onClick={() => setConfirming(true)}
+            >
+              Skip
+            </button>
+          )}
+        </div>
+      )}
+      {completedAt && !isSkipped && (
+        <div className="mt-3">
+          <Link href={`/workout/${workoutId}`} className="text-xs text-muted-foreground underline underline-offset-2">
+            View →
+          </Link>
+        </div>
       )}
 
       {confirming && (
