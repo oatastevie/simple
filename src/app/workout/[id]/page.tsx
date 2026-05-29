@@ -39,7 +39,7 @@ export default async function WorkoutPage({ params }: { params: Promise<{ id: st
   const { data: allSets } = exerciseIds.length
     ? await supabase
         .from("sets")
-        .select("id, exercise_id, set_number, reps_completed, weight_kg")
+        .select("id, exercise_id, set_number, reps_completed, weight_kg, notes")
         .in("exercise_id", exerciseIds)
         .order("set_number", { ascending: true })
     : { data: [] }

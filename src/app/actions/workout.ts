@@ -9,6 +9,7 @@ export async function logSet(
   setNumber: number,
   repsCompleted: number,
   weightKg: number,
+  notes: string,
 ): Promise<void> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -19,6 +20,7 @@ export async function logSet(
     set_number: setNumber,
     reps_completed: repsCompleted,
     weight_kg: weightKg,
+    notes: notes.trim() || null,
   })
 
   // Check if all target sets are now logged — if so, mark exercise completed

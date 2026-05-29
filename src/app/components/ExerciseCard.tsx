@@ -10,6 +10,7 @@ type LoggedSet = {
   set_number: number | null
   reps_completed: number | null
   weight_kg: number | null
+  notes: string | null
 }
 
 type Props = {
@@ -105,14 +106,19 @@ export default function ExerciseCard({
 
         {/* Logged sets */}
         {loggedSets.length > 0 && (
-          <div className="space-y-1 mb-3">
+          <div className="space-y-1.5 mb-3">
             {loggedSets.map(s => (
-              <div key={s.id} className="flex items-center justify-between text-xs text-muted-foreground">
-                <span>Set {s.set_number}</span>
-                <span className="tabular-nums">
-                  {s.reps_completed} reps
-                  {!isBodyweight && s.weight_kg ? ` · ${s.weight_kg}kg` : ""}
-                </span>
+              <div key={s.id} className="text-xs text-muted-foreground">
+                <div className="flex items-center justify-between">
+                  <span>Set {s.set_number}</span>
+                  <span className="tabular-nums">
+                    {s.reps_completed} reps
+                    {s.weight_kg ? ` · ${s.weight_kg}kg` : ""}
+                  </span>
+                </div>
+                {s.notes && (
+                  <p className="text-muted-foreground/70 mt-0.5 italic">{s.notes}</p>
+                )}
               </div>
             ))}
           </div>
