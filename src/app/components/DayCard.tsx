@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, useTransition } from "react"
-import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { skipWorkout } from "@/app/actions/programme"
@@ -49,7 +48,6 @@ export default function DayCard({
   weekday,
   short,
 }: Props) {
-  const router = useRouter()
   const [confirming, setConfirming] = useState(false)
   const [pending, startTransition] = useTransition()
 
@@ -61,7 +59,6 @@ export default function DayCard({
     startTransition(async () => {
       await skipWorkout(workoutId, shiftFuture)
       setConfirming(false)
-      router.refresh()
     })
   }
 

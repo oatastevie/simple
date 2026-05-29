@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
+import { revalidatePath } from "next/cache"
 import type { GeneratedDay } from "@/lib/ai/programme-schema"
 
 export async function saveProgramme(
@@ -100,38 +101,38 @@ export async function skipWorkout(
     .eq("id", workoutId)
 
   if (shiftFuture && workout.scheduled_date && workout.programme_id) {
-    // Fetch all future workouts sorted ascending
+    // Only shift non-skipped workouts scheduled after the skipped one
     const { data: future } = await supabase
       .from("workouts")
       .select("id, scheduled_date")
       .eq("programme_id", workout.programme_id)
       .gt("scheduled_date", workout.scheduled_date)
+      .is("skipped_at", null)
       .order("scheduled_date", { ascending: true })
 
     if (future?.length) {
-      // The last future workout's original date is freed up after the shift.
-      // Move the skipped workout there so there are no date collisions.
+      // Capture the freed slot before any updates
       const freedDate = future[future.length - 1].scheduled_date!
 
-      // Shift each future workout back 1 day (they fill the skipped slot)
-      await Promise.all(
-        future.map(w => {
-          const d = new Date(w.scheduled_date! + "T00:00:00")
-          d.setDate(d.getDate() - 1)
-          return supabase
-            .from("workouts")
-            .update({ scheduled_date: d.toISOString().split("T")[0] })
-            .eq("id", w.id)
-        })
-      )
+      // Shift sequentially (ascending) so dates never collide mid-update
+      for (const w of future) {
+        const d = new Date(w.scheduled_date! + "T00:00:00")
+        d.setDate(d.getDate() - 1)
+        await supabase
+          .from("workouts")
+          .update({ scheduled_date: d.toISOString().split("T")[0] })
+          .eq("id", w.id)
+      }
 
-      // Place the skipped workout at the end (the now-freed last slot)
+      // Place the skipped workout at the freed end slot
       await supabase
         .from("workouts")
         .update({ scheduled_date: freedDate })
         .eq("id", workoutId)
     }
   }
+
+  revalidatePath("/")
 }
 
 export async function getNextWeekNumber(userId: string): Promise<number> {
