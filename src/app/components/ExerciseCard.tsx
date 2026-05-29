@@ -4,6 +4,7 @@ import { useState } from "react"
 import { cn } from "@/lib/utils"
 import { skipExercise } from "@/app/actions/workout"
 import LogSetSheet from "./LogSetSheet"
+import type { PreviousSet } from "@/app/workout/[id]/page"
 
 type LoggedSet = {
   id: string
@@ -25,6 +26,7 @@ type Props = {
   completed: boolean
   skipped: boolean
   loggedSets: LoggedSet[]
+  previousSets: PreviousSet[]
 }
 
 export default function ExerciseCard({
@@ -38,6 +40,7 @@ export default function ExerciseCard({
   completed,
   skipped,
   loggedSets,
+  previousSets,
 }: Props) {
   const [sheetOpen, setSheetOpen] = useState(false)
   const [skipConfirm, setSkipConfirm] = useState(false)
@@ -47,7 +50,9 @@ export default function ExerciseCard({
   const allSetsLogged = loggedSets.length >= targetSets
   const lastWeight = loggedSets.length > 0
     ? (loggedSets[loggedSets.length - 1].weight_kg ?? targetWeightKg)
-    : targetWeightKg
+    : previousSets.length > 0
+      ? (previousSets[previousSets.length - 1].weight_kg ?? targetWeightKg)
+      : targetWeightKg
 
   function handleLogged() {
     setSheetOpen(false)
@@ -122,6 +127,24 @@ export default function ExerciseCard({
                 {s.notes && (
                   <p className="text-muted-foreground/70 mt-0.5 italic">{s.notes}</p>
                 )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Previous session reference */}
+        {previousSets.length > 0 && !completed && !skipped && (
+          <div className="mb-3 px-3 py-2 rounded-lg bg-muted/50 space-y-1">
+            <p className="text-xs text-muted-foreground font-medium">Last time</p>
+            {previousSets.map((s, i) => (
+              <div key={i} className="text-xs text-muted-foreground">
+                <div className="flex justify-between">
+                  <span>Set {s.set_number}</span>
+                  <span className="tabular-nums">
+                    {s.reps_completed} reps{s.weight_kg ? ` · ${s.weight_kg}kg` : ""}
+                  </span>
+                </div>
+                {s.notes && <p className="italic text-muted-foreground/70 mt-0.5">{s.notes}</p>}
               </div>
             ))}
           </div>

@@ -13,6 +13,13 @@ const WORKOUT_LABELS: Record<string, string> = {
   rest: "Rest",
 }
 
+export type PreviousSet = {
+  set_number: number | null
+  reps_completed: number | null
+  weight_kg: number | null
+  notes: string | null
+}
+
 export default async function WorkoutPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const supabase = await createClient()
@@ -35,7 +42,9 @@ export default async function WorkoutPage({ params }: { params: Promise<{ id: st
     .order("order_index", { ascending: true })
 
   const exerciseIds = (exercises ?? []).map(e => e.id)
+  const exerciseNames = (exercises ?? []).map(e => e.name).filter(Boolean) as string[]
 
+  // Current session sets
   const { data: allSets } = exerciseIds.length
     ? await supabase
         .from("sets")
@@ -52,6 +61,66 @@ export default async function WorkoutPage({ params }: { params: Promise<{ id: st
     return acc
   }, {})
 
+  // Historical sets — find the most recent previous workout containing each exercise by name
+  const previousSetsByName: Record<string, PreviousSet[]> = {}
+
+  if (exerciseNames.length) {
+    // Fetch recent completed workouts for this user (excluding current)
+    const { data: recentWorkouts } = await supabase
+      .from("workouts")
+      .select("id")
+      .eq("user_id", user.id)
+      .neq("id", id)
+      .not("completed_at", "is", null)
+      .order("scheduled_date", { ascending: false })
+      .limit(20)
+
+    const recentIds = (recentWorkouts ?? []).map(w => w.id)
+
+    if (recentIds.length) {
+      // Find exercises with matching names from those workouts
+      const { data: prevExercises } = await supabase
+        .from("exercises")
+        .select("id, name, workout_id")
+        .in("workout_id", recentIds)
+        .in("name", exerciseNames)
+
+      if (prevExercises?.length) {
+        // For each exercise name, pick the most recent workout's exercise
+        // recentWorkouts is ordered by date desc, so iterate in order
+        const latestExerciseIdByName: Record<string, string> = {}
+        for (const wId of recentIds) {
+          for (const ex of prevExercises) {
+            if (ex.workout_id === wId && ex.name && !latestExerciseIdByName[ex.name]) {
+              latestExerciseIdByName[ex.name] = ex.id
+            }
+          }
+        }
+
+        const latestIds = Object.values(latestExerciseIdByName)
+        if (latestIds.length) {
+          const { data: prevSets } = await supabase
+            .from("sets")
+            .select("exercise_id, set_number, reps_completed, weight_kg, notes")
+            .in("exercise_id", latestIds)
+            .order("set_number", { ascending: true })
+
+          // Group by exercise_id then re-key by name
+          const idToName = Object.fromEntries(
+            Object.entries(latestExerciseIdByName).map(([name, exId]) => [exId, name])
+          )
+          for (const s of prevSets ?? []) {
+            if (!s.exercise_id) continue
+            const name = idToName[s.exercise_id]
+            if (!name) continue
+            previousSetsByName[name] = previousSetsByName[name] ?? []
+            previousSetsByName[name].push(s)
+          }
+        }
+      }
+    }
+  }
+
   const exs = exercises ?? []
   const allDone = exs.length > 0 && exs.every(e => e.completed || e.skipped)
   const label = WORKOUT_LABELS[workout.workout_type ?? ""] ?? workout.workout_type
@@ -60,12 +129,10 @@ export default async function WorkoutPage({ params }: { params: Promise<{ id: st
 
   return (
     <div className="min-h-screen px-4 pt-8 pb-24 max-w-lg mx-auto w-full">
-      {/* Back */}
       <Link href="/" className="text-sm text-muted-foreground mb-6 inline-block">
         ← Home
       </Link>
 
-      {/* Header */}
       <div className="mb-6">
         <div className="flex items-center gap-2 mb-1">
           <h1 className="text-2xl font-semibold tracking-tight">{label} day</h1>
@@ -76,7 +143,6 @@ export default async function WorkoutPage({ params }: { params: Promise<{ id: st
         <p className="text-sm text-muted-foreground">{dateLabel}</p>
       </div>
 
-      {/* Exercise cards */}
       <div className="space-y-3">
         {exs.map(ex => (
           <ExerciseCard
@@ -92,11 +158,11 @@ export default async function WorkoutPage({ params }: { params: Promise<{ id: st
             completed={!!ex.completed}
             skipped={!!ex.skipped}
             loggedSets={setsByExercise[ex.id] ?? []}
+            previousSets={(previousSetsByName[ex.name ?? ""] ?? []).slice(0, 2)}
           />
         ))}
       </div>
 
-      {/* Complete workout */}
       {!workout.completed_at && (
         <div className="fixed bottom-0 left-0 right-0 px-4 pb-8 pt-4 bg-background/80 backdrop-blur max-w-lg mx-auto">
           <CompleteWorkoutButton workoutId={id} allDone={allDone} />
