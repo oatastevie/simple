@@ -43,8 +43,11 @@ export default function ExerciseCard({
   const [skipConfirm, setSkipConfirm] = useState(false)
 
   const isBodyweight = targetWeightKg === 0
-  const nextSetNumber = (loggedSets.length) + 1
+  const nextSetNumber = loggedSets.length + 1
   const allSetsLogged = loggedSets.length >= targetSets
+  const lastWeight = loggedSets.length > 0
+    ? (loggedSets[loggedSets.length - 1].weight_kg ?? targetWeightKg)
+    : targetWeightKg
 
   function handleLogged() {
     setSheetOpen(false)
@@ -170,7 +173,7 @@ export default function ExerciseCard({
           exerciseName={name}
           setNumber={nextSetNumber}
           targetReps={targetReps}
-          targetWeightKg={targetWeightKg}
+          targetWeightKg={lastWeight}
           isBodyweight={isBodyweight}
           onClose={() => setSheetOpen(false)}
           onLogged={handleLogged}
