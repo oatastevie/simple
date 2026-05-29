@@ -57,6 +57,24 @@ export default async function Home() {
         .order("order_index", { ascending: true })
     : { data: [] }
 
+  const exerciseIds = (exercises ?? []).map(e => e.id)
+
+  const { data: sets } = exerciseIds.length
+    ? await supabase
+        .from("sets")
+        .select("exercise_id, weight_kg, set_number")
+        .in("exercise_id", exerciseIds)
+        .order("set_number", { ascending: false })
+    : { data: [] }
+
+  // Last logged weight per exercise (sets are ordered desc so first match wins)
+  const lastLoggedWeight: Record<string, number> = {}
+  for (const s of sets ?? []) {
+    if (s.exercise_id && s.weight_kg != null && !(s.exercise_id in lastLoggedWeight)) {
+      lastLoggedWeight[s.exercise_id] = s.weight_kg
+    }
+  }
+
   type Exercise = NonNullable<typeof exercises>[number]
   const exercisesByWorkout = (exercises ?? []).reduce<Record<string, Exercise[]>>((acc, ex) => {
     if (!ex.workout_id) return acc
@@ -104,6 +122,7 @@ export default async function Home() {
               completedAt={workout.completed_at}
               skippedAt={workout.skipped_at}
               exercises={exs}
+              lastLoggedWeight={lastLoggedWeight}
               isToday={isToday(workout.scheduled_date ?? "")}
               isPast={isPast(workout.scheduled_date ?? "")}
               weekday={weekday}

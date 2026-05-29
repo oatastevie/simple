@@ -32,6 +32,7 @@ type Props = {
   completedAt: string | null
   skippedAt: string | null
   exercises: Exercise[]
+  lastLoggedWeight: Record<string, number>
   isToday: boolean
   isPast: boolean
   weekday: string
@@ -44,6 +45,7 @@ export default function DayCard({
   completedAt,
   skippedAt,
   exercises,
+  lastLoggedWeight,
   isToday,
   isPast,
   weekday,
@@ -112,7 +114,10 @@ export default function DayCard({
               <span className="font-medium">{ex.name}</span>
               <span className="text-muted-foreground tabular-nums">
                 {ex.target_sets}×{ex.target_reps}
-                {ex.target_weight_kg ? ` · ${ex.target_weight_kg}kg` : " · BW"}
+                {(() => {
+                  const w = lastLoggedWeight[ex.id] ?? ex.target_weight_kg
+                  return w ? ` · ${w}kg` : " · BW"
+                })()}
               </span>
             </div>
           ))}
