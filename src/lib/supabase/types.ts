@@ -212,6 +212,7 @@ export type Database = {
           notes: string | null
           programme_id: string | null
           scheduled_date: string | null
+          skipped_at: string | null
           user_id: string | null
           workout_type: string | null
         }
@@ -223,6 +224,7 @@ export type Database = {
           notes?: string | null
           programme_id?: string | null
           scheduled_date?: string | null
+          skipped_at?: string | null
           user_id?: string | null
           workout_type?: string | null
         }
@@ -234,6 +236,7 @@ export type Database = {
           notes?: string | null
           programme_id?: string | null
           scheduled_date?: string | null
+          skipped_at?: string | null
           user_id?: string | null
           workout_type?: string | null
         }

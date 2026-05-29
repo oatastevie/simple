@@ -74,6 +74,55 @@ export async function saveProgramme(
   return { programmeId: programme.id }
 }
 
+// Marks a workout as skipped. If shiftFuture is true, all later workouts in the
+// same programme shift back 1 day so tomorrow's session becomes today's.
+export async function skipWorkout(
+  workoutId: string,
+  shiftFuture: boolean,
+): Promise<void> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect("/auth/login")
+
+  // Fetch the workout to get its date and programme
+  const { data: workout } = await supabase
+    .from("workouts")
+    .select("scheduled_date, programme_id")
+    .eq("id", workoutId)
+    .eq("user_id", user.id)
+    .single()
+
+  if (!workout) return
+
+  await supabase
+    .from("workouts")
+    .update({ skipped_at: new Date().toISOString() })
+    .eq("id", workoutId)
+
+  if (shiftFuture && workout.scheduled_date && workout.programme_id) {
+    // Fetch all future workouts for this programme sorted ascending
+    const { data: future } = await supabase
+      .from("workouts")
+      .select("id, scheduled_date")
+      .eq("programme_id", workout.programme_id)
+      .gt("scheduled_date", workout.scheduled_date)
+      .order("scheduled_date", { ascending: true })
+
+    if (future?.length) {
+      await Promise.all(
+        future.map(w => {
+          const d = new Date(w.scheduled_date! + "T00:00:00")
+          d.setDate(d.getDate() - 1)
+          return supabase
+            .from("workouts")
+            .update({ scheduled_date: d.toISOString().split("T")[0] })
+            .eq("id", w.id)
+        })
+      )
+    }
+  }
+}
+
 export async function getNextWeekNumber(userId: string): Promise<number> {
   const supabase = await createClient()
   const { data } = await supabase
