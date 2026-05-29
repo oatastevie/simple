@@ -100,7 +100,7 @@ export async function skipWorkout(
     .eq("id", workoutId)
 
   if (shiftFuture && workout.scheduled_date && workout.programme_id) {
-    // Fetch all future workouts for this programme sorted ascending
+    // Fetch all future workouts sorted ascending
     const { data: future } = await supabase
       .from("workouts")
       .select("id, scheduled_date")
@@ -109,6 +109,11 @@ export async function skipWorkout(
       .order("scheduled_date", { ascending: true })
 
     if (future?.length) {
+      // The last future workout's original date is freed up after the shift.
+      // Move the skipped workout there so there are no date collisions.
+      const freedDate = future[future.length - 1].scheduled_date!
+
+      // Shift each future workout back 1 day (they fill the skipped slot)
       await Promise.all(
         future.map(w => {
           const d = new Date(w.scheduled_date! + "T00:00:00")
@@ -119,6 +124,12 @@ export async function skipWorkout(
             .eq("id", w.id)
         })
       )
+
+      // Place the skipped workout at the end (the now-freed last slot)
+      await supabase
+        .from("workouts")
+        .update({ scheduled_date: freedDate })
+        .eq("id", workoutId)
     }
   }
 }
