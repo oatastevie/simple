@@ -63,6 +63,52 @@ export async function skipExercise(exerciseId: string, workoutId: string): Promi
 
 // Copies a past workout as today's workout, skipping today's planned one.
 // Returns the new workout's ID.
+export async function replaceDayWorkout(
+  workoutId: string,
+  workoutType: string,
+  exercises: Array<{
+    name: string
+    muscle_group: string
+    equipment: string
+    target_sets: number
+    target_reps: number
+    target_weight_kg: number
+  }>,
+): Promise<void> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect("/auth/login")
+
+  // Delete existing exercises (no sets logged yet if regenerating)
+  await supabase.from("exercises").delete().eq("workout_id", workoutId)
+
+  // Update workout type
+  await supabase
+    .from("workouts")
+    .update({ workout_type: workoutType } as any)
+    .eq("id", workoutId)
+    .eq("user_id", user.id)
+
+  // Insert new exercises
+  await supabase.from("exercises").insert(
+    exercises.map((ex, i) => ({
+      workout_id: workoutId,
+      name: ex.name,
+      muscle_group: ex.muscle_group,
+      equipment: ex.equipment,
+      target_sets: ex.target_sets,
+      target_reps: ex.target_reps,
+      target_weight_kg: ex.target_weight_kg,
+      order_index: i,
+      completed: false,
+      skipped: false,
+    }))
+  )
+
+  revalidatePath("/")
+  revalidatePath(`/workout/${workoutId}`)
+}
+
 export async function redoWorkout(pastWorkoutId: string): Promise<string> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()

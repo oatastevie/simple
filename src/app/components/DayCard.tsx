@@ -137,14 +137,22 @@ export default function DayCard({
           >
             {isToday ? "Start workout →" : "View workout →"}
           </Link>
-          {canSkip && !confirming && (
-            <button
+          <div className="flex items-center gap-3">
+            <Link
+              href={`/workout/${workoutId}/regenerate`}
               className="text-xs text-muted-foreground underline underline-offset-2"
-              onClick={() => setConfirming(true)}
             >
-              Skip
-            </button>
-          )}
+              Regenerate
+            </Link>
+            {canSkip && !confirming && (
+              <button
+                className="text-xs text-muted-foreground underline underline-offset-2"
+                onClick={() => setConfirming(true)}
+              >
+                Skip
+              </button>
+            )}
+          </div>
         </div>
       )}
       {completedAt && !isSkipped && (

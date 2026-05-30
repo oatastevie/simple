@@ -97,3 +97,74 @@ export function validateWeekJson(raw: string): ValidationResult {
   const days: GeneratedDay[] = result.data.map((day, i) => ({ ...day, day_offset: i }))
   return { ok: true, days }
 }
+
+export function buildSingleDayPrompt(
+  profile: UserProfile,
+  recentHistory: string[],
+  request: string,
+): string {
+  const level = EXPERIENCE_LEVEL[profile.lifting_frequency ?? "Never"] ?? "beginner"
+  const areasToAvoid = profile.areas_to_avoid?.filter(a => a !== "None").join(", ") || "none"
+  const recentLine = recentHistory.length
+    ? recentHistory.map(t => `- ${t}`).join("\n")
+    : "- none"
+
+  return `You are a personal trainer. Generate ONE workout day as a JSON object.
+
+User profile:
+- Goal: ${profile.goal}${profile.secondary_goal ? `, secondary: ${profile.secondary_goal}` : ""}
+- Age: ${profile.age}, Sex: ${profile.sex}
+- Lifting: ${profile.lifting_frequency} → level: ${level}
+- Height: ${profile.height}cm, Weight: ${profile.weight}kg
+- Areas to avoid: ${areasToAvoid}
+
+Recent workouts (most recent first):
+${recentLine}
+
+Special request: ${request || "none — use your best judgement"}
+
+Output a single JSON object (not an array) with this exact structure:
+
+{
+  "workout_type": "push" | "pull" | "legs" | "full_body" | "cardio" | "rest",
+  "exercises": [
+    {
+      "name": "string",
+      "muscle_group": "string",
+      "equipment": "string",
+      "target_sets": 1–8,
+      "target_reps": 1–30,
+      "target_weight_kg": 0–999
+    }
+  ]
+}
+
+Rules:
+- At least 3 exercises
+- target_weight_kg of 0 means bodyweight
+- Respect areas_to_avoid strictly
+- Honour the special request above
+- Output only the raw JSON object — no markdown, no explanation, no code fences`
+}
+
+export type DayValidationResult =
+  | { ok: true; day: GeneratedDay }
+  | { ok: false; error: string }
+
+export function validateDayJson(raw: string): DayValidationResult {
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(raw)
+  } catch {
+    return { ok: false, error: "Not valid JSON — paste the raw object from Claude, no markdown." }
+  }
+
+  const result = WorkoutDaySchema.safeParse(parsed)
+  if (!result.success) {
+    const first = result.error.issues[0]
+    const path = first.path.length ? ` (${first.path.join(".")})` : ""
+    return { ok: false, error: `${first.message}${path}` }
+  }
+
+  return { ok: true, day: { ...result.data, day_offset: 0 } }
+}
