@@ -158,7 +158,7 @@ export async function redoWorkout(pastWorkoutId: string): Promise<string> {
       user_id: user.id,
       programme_id: programme.id,
       scheduled_date: today,
-      workout_type: pastWorkout?.workout_type ?? "full_body",
+      workout_type: pastWorkout?.workout_type ?? "push",
       ai_generated: false,
     } as any)
     .select("id")

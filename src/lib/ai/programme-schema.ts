@@ -1,6 +1,6 @@
 import { z } from "zod"
 
-export const WORKOUT_TYPES = ["push", "pull", "legs", "full_body", "cardio", "rest"] as const
+export const WORKOUT_TYPES = ["push", "pull", "legs", "rest"] as const
 
 export const ExerciseSchema = z.object({
   name: z.string(),

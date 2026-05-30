@@ -10,8 +10,6 @@ const WORKOUT_LABELS: Record<string, string> = {
   push: "Push",
   pull: "Pull",
   legs: "Legs",
-  full_body: "Full Body",
-  cardio: "Cardio",
   rest: "Rest",
 }
 

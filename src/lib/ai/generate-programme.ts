@@ -88,7 +88,6 @@ export async function getRecentWorkoutContext(): Promise<string> {
 export function buildWeekPrompt(profile: UserProfile, recentContext: string): string {
   const level = EXPERIENCE_LEVEL[profile.lifting_frequency ?? "Never"] ?? "beginner"
   const areasToAvoid = profile.areas_to_avoid?.filter(a => a !== "None").join(", ") || "none"
-  const cardioTypes = profile.cardio_types?.join(", ") || "none"
 
   return `You are a personal trainer. Generate a 7-day workout programme as a JSON array.
 
@@ -96,7 +95,6 @@ User profile:
 - Goal: ${profile.goal}${profile.secondary_goal ? `, secondary: ${profile.secondary_goal}` : ""}
 - Age: ${profile.age}, Sex: ${profile.sex}, Job: ${profile.job_type}
 - Lifting: ${profile.lifting_frequency} → level: ${level}
-- Cardio: ${profile.cardio_frequency}, types: ${cardioTypes}
 - Height: ${profile.height}cm, Weight: ${profile.weight}kg${profile.body_fat_percentage ? `\n- Body fat: ${profile.body_fat_percentage}%` : ""}
 - Areas to avoid: ${areasToAvoid}
 
@@ -107,7 +105,7 @@ Output a JSON array of exactly 7 objects — one per day, starting from today. U
 
 [
   {
-    "workout_type": "push" | "pull" | "legs" | "full_body" | "cardio" | "rest",
+    "workout_type": "push" | "pull" | "legs" | "rest",
     "exercises": [
       {
         "name": "string",
@@ -180,7 +178,7 @@ Special request: ${request || "none — use your best judgement"}
 Output a single JSON object (not an array) with this exact structure:
 
 {
-  "workout_type": "push" | "pull" | "legs" | "full_body" | "cardio" | "rest",
+  "workout_type": "push" | "pull" | "legs" | "rest",
   "exercises": [
     {
       "name": "string",
