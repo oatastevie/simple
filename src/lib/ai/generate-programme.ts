@@ -14,24 +14,81 @@ const EXPERIENCE_LEVEL: Record<string, string> = {
   "5x+ week": "advanced",
 }
 
-export async function getRecentWorkoutTypes(): Promise<string[]> {
+// Builds a rich recent-workout context string including exercises, sets, weights, and notes.
+export async function getRecentWorkoutContext(): Promise<string> {
   const supabase = createClient()
-  const { data } = await supabase
+  const today = new Date().toISOString().split("T")[0]
+
+  const { data: workouts } = await supabase
     .from("workouts")
-    .select("workout_type, scheduled_date")
-    .lt("scheduled_date", new Date().toISOString().split("T")[0])
+    .select("id, workout_type, scheduled_date")
+    .lt("scheduled_date", today)
+    .not("completed_at", "is", null)
     .order("scheduled_date", { ascending: false })
     .limit(3)
-  return (data ?? []).map(w => w.workout_type ?? "rest").filter(Boolean)
+
+  if (!workouts?.length) return "- none"
+
+  const workoutIds = workouts.map(w => w.id)
+
+  const { data: exercises } = await supabase
+    .from("exercises")
+    .select("id, workout_id, name, target_sets, target_reps, target_weight_kg")
+    .in("workout_id", workoutIds)
+    .order("order_index", { ascending: true })
+
+  const exerciseIds = (exercises ?? []).map(e => e.id)
+
+  const { data: sets } = exerciseIds.length
+    ? await supabase
+        .from("sets")
+        .select("exercise_id, set_number, reps_completed, weight_kg, notes")
+        .in("exercise_id", exerciseIds)
+        .order("set_number", { ascending: true })
+    : { data: [] }
+
+  type SetRow = NonNullable<typeof sets>[number]
+  const setsByExercise = (sets ?? []).reduce<Record<string, SetRow[]>>((acc, s) => {
+    if (!s.exercise_id) return acc
+    acc[s.exercise_id] = acc[s.exercise_id] ?? []
+    acc[s.exercise_id]!.push(s)
+    return acc
+  }, {})
+
+  type ExRow = NonNullable<typeof exercises>[number]
+  const exercisesByWorkout = (exercises ?? []).reduce<Record<string, ExRow[]>>((acc, ex) => {
+    if (!ex.workout_id) return acc
+    acc[ex.workout_id] = acc[ex.workout_id] ?? []
+    acc[ex.workout_id]!.push(ex)
+    return acc
+  }, {})
+
+  return workouts.map(w => {
+    const date = new Date((w.scheduled_date ?? "") + "T00:00:00Z")
+      .toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" })
+    const exs = exercisesByWorkout[w.id] ?? []
+
+    const exerciseLines = exs.map(ex => {
+      const logged = setsByExercise[ex.id] ?? []
+      if (!logged.length) return `  ${ex.name} — no sets logged`
+
+      const setStrs = logged.map(s => {
+        const reps = s.reps_completed ?? "?"
+        const weight = s.weight_kg ? `@${s.weight_kg}kg` : "BW"
+        const note = s.notes ? ` ("${s.notes}")` : ""
+        return `${reps}${weight}${note}`
+      })
+      return `  ${ex.name}: ${setStrs.join(", ")}`
+    })
+
+    return `${w.workout_type} · ${date}\n${exerciseLines.join("\n")}`
+  }).join("\n\n")
 }
 
-export function buildWeekPrompt(profile: UserProfile, recentHistory: string[]): string {
+export function buildWeekPrompt(profile: UserProfile, recentContext: string): string {
   const level = EXPERIENCE_LEVEL[profile.lifting_frequency ?? "Never"] ?? "beginner"
   const areasToAvoid = profile.areas_to_avoid?.filter(a => a !== "None").join(", ") || "none"
   const cardioTypes = profile.cardio_types?.join(", ") || "none"
-  const recentLine = recentHistory.length
-    ? recentHistory.map(t => `- ${t}`).join("\n")
-    : "- none"
 
   return `You are a personal trainer. Generate a 7-day workout programme as a JSON array.
 
@@ -44,7 +101,7 @@ User profile:
 - Areas to avoid: ${areasToAvoid}
 
 Recent workouts (most recent first):
-${recentLine}
+${recentContext}
 
 Output a JSON array of exactly 7 objects — one per day, starting from today. Use this exact structure:
 
@@ -69,7 +126,7 @@ Rules:
 - Training days must have at least 3 exercises
 - target_weight_kg of 0 means bodyweight
 - Respect areas_to_avoid strictly — do not programme exercises that stress those areas
-- Avoid repeating the same muscle groups as the recent workouts listed above
+- Use recent workout data to inform appropriate weights and avoid repeating muscle groups
 - Output only the raw JSON array — no markdown, no explanation, no code fences`
 }
 
@@ -100,14 +157,11 @@ export function validateWeekJson(raw: string): ValidationResult {
 
 export function buildSingleDayPrompt(
   profile: UserProfile,
-  recentHistory: string[],
+  recentContext: string,
   request: string,
 ): string {
   const level = EXPERIENCE_LEVEL[profile.lifting_frequency ?? "Never"] ?? "beginner"
   const areasToAvoid = profile.areas_to_avoid?.filter(a => a !== "None").join(", ") || "none"
-  const recentLine = recentHistory.length
-    ? recentHistory.map(t => `- ${t}`).join("\n")
-    : "- none"
 
   return `You are a personal trainer. Generate ONE workout day as a JSON object.
 
@@ -119,7 +173,7 @@ User profile:
 - Areas to avoid: ${areasToAvoid}
 
 Recent workouts (most recent first):
-${recentLine}
+${recentContext}
 
 Special request: ${request || "none — use your best judgement"}
 
@@ -143,6 +197,7 @@ Rules:
 - At least 3 exercises
 - target_weight_kg of 0 means bodyweight
 - Respect areas_to_avoid strictly
+- Use recent workout data to inform appropriate weights and avoid repeating muscle groups
 - Honour the special request above
 - Output only the raw JSON object — no markdown, no explanation, no code fences`
 }

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from "react"
 import { useRouter, useParams } from "next/navigation"
-import { buildSingleDayPrompt, validateDayJson, getRecentWorkoutTypes, type DayValidationResult } from "@/lib/ai/generate-programme"
+import { buildSingleDayPrompt, validateDayJson, getRecentWorkoutContext, type DayValidationResult } from "@/lib/ai/generate-programme"
 import { replaceDayWorkout } from "@/app/actions/workout"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
@@ -21,7 +21,7 @@ export default function RegenerateDayPage() {
   const [pasted, setPasted] = useState("")
   const [validation, setValidation] = useState<DayValidationResult | null>(null)
   const profileRef = useRef<any>(null)
-  const recentRef = useRef<string[]>([])
+  const recentRef = useRef<string>("")
 
   useEffect(() => {
     async function load() {
@@ -30,7 +30,7 @@ export default function RegenerateDayPage() {
       if (!user) { router.push("/auth/login"); return }
       const { data: profile } = await supabase.from("users").select("*").eq("id", user.id).single()
       profileRef.current = profile
-      recentRef.current = await getRecentWorkoutTypes()
+      recentRef.current = await getRecentWorkoutContext()
     }
     load()
   }, [router])

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from "react"
 import { useRouter } from "next/navigation"
-import { buildWeekPrompt, getRecentWorkoutTypes, validateWeekJson, type ValidationResult } from "@/lib/ai/generate-programme"
+import { buildWeekPrompt, getRecentWorkoutContext, validateWeekJson, type ValidationResult } from "@/lib/ai/generate-programme"
 import { saveProgramme, getNextWeekNumber } from "@/app/actions/programme"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
@@ -36,7 +36,7 @@ export default function GeneratingPage() {
       if (!profile) { router.push("/onboarding"); return }
 
       const [recentHistory, weekNumber] = await Promise.all([
-        getRecentWorkoutTypes(),
+        getRecentWorkoutContext(),
         getNextWeekNumber(user.id),
       ])
 
