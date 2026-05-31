@@ -2,7 +2,6 @@
 
 import { useState } from "react"
 import { cn } from "@/lib/utils"
-import { skipExercise } from "@/app/actions/workout"
 import LogSetSheet from "./LogSetSheet"
 import type { PreviousSet } from "@/app/workout/[id]/page"
 
@@ -15,7 +14,6 @@ type LoggedSet = {
 }
 
 type Props = {
-  workoutId: string
   exerciseId: string
   name: string
   muscleGroup: string | null
@@ -27,10 +25,11 @@ type Props = {
   skipped: boolean
   loggedSets: LoggedSet[]
   previousSets: PreviousSet[]
+  onLogSet: (setNumber: number, reps: number, weight: number, notes: string) => void
+  onSkip: () => void
 }
 
 export default function ExerciseCard({
-  workoutId,
   exerciseId,
   name,
   muscleGroup,
@@ -41,6 +40,8 @@ export default function ExerciseCard({
   skipped,
   loggedSets,
   previousSets,
+  onLogSet,
+  onSkip,
 }: Props) {
   const [sheetOpen, setSheetOpen] = useState(false)
   const [skipConfirm, setSkipConfirm] = useState(false)
@@ -49,17 +50,18 @@ export default function ExerciseCard({
   const nextSetNumber = loggedSets.length + 1
   const allSetsLogged = loggedSets.length >= targetSets
   const lastWeight = loggedSets.length > 0
-    ? (loggedSets[loggedSets.length - 1].weight_kg ?? targetWeightKg)
+    ? (loggedSets[loggedSets.length - 1]!.weight_kg ?? targetWeightKg)
     : previousSets.length > 0
-      ? (previousSets[previousSets.length - 1].weight_kg ?? targetWeightKg)
+      ? (previousSets[previousSets.length - 1]!.weight_kg ?? targetWeightKg)
       : targetWeightKg
 
-  function handleLogged() {
+  function handleLogSet(reps: number, weight: number, notes: string) {
+    onLogSet(nextSetNumber, reps, weight, notes)
     setSheetOpen(false)
   }
 
   function handleSkip() {
-    skipExercise(exerciseId, workoutId)
+    onSkip()
     setSkipConfirm(false)
   }
 
@@ -98,18 +100,15 @@ export default function ExerciseCard({
 
         {/* Set dots */}
         <div className="flex gap-2 mb-4">
-          {Array.from({ length: targetSets }).map((_, i) => {
-            const logged = loggedSets[i]
-            return (
-              <div
-                key={i}
-                className={cn(
-                  "h-2 flex-1 rounded-full",
-                  logged ? "bg-foreground" : "bg-muted"
-                )}
-              />
-            )
-          })}
+          {Array.from({ length: targetSets }).map((_, i) => (
+            <div
+              key={i}
+              className={cn(
+                "h-2 flex-1 rounded-full",
+                loggedSets[i] ? "bg-foreground" : "bg-muted"
+              )}
+            />
+          ))}
         </div>
 
         {/* Logged sets */}
@@ -192,14 +191,13 @@ export default function ExerciseCard({
 
       {sheetOpen && (
         <LogSetSheet
-          exerciseId={exerciseId}
           exerciseName={name}
           setNumber={nextSetNumber}
           targetReps={targetReps}
           targetWeightKg={lastWeight}
           isBodyweight={isBodyweight}
           onClose={() => setSheetOpen(false)}
-          onLogged={handleLogged}
+          onLogSet={handleLogSet}
         />
       )}
     </>

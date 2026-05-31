@@ -1,24 +1,33 @@
 "use client"
 
-import { useTransition } from "react"
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { completeWorkout } from "@/app/actions/workout"
 
 export default function CompleteWorkoutButton({
-  workoutId,
   allDone,
+  syncing,
+  onComplete,
 }: {
-  workoutId: string
   allDone: boolean
+  syncing: boolean
+  onComplete: () => Promise<void>
 }) {
-  const [pending, startTransition] = useTransition()
+  const [pending, setPending] = useState(false)
+
+  async function handleClick() {
+    setPending(true)
+    await onComplete()
+    setPending(false)
+  }
+
+  const busy = pending || syncing
 
   return (
     <Button
       className="w-full h-12 text-base"
       variant={allDone ? "default" : "outline"}
-      disabled={pending}
-      onClick={() => startTransition(() => completeWorkout(workoutId))}
+      disabled={busy}
+      onClick={handleClick}
     >
       {pending ? "Saving…" : allDone ? "Complete workout" : "Finish early"}
     </Button>

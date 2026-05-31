@@ -1,35 +1,31 @@
 "use client"
 
-import { useState, useTransition, useEffect } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { logSet } from "@/app/actions/workout"
 
 type Props = {
-  exerciseId: string
   exerciseName: string
   setNumber: number
   targetReps: number
   targetWeightKg: number
   isBodyweight: boolean
   onClose: () => void
-  onLogged: () => void
+  onLogSet: (reps: number, weight: number, notes: string) => void
 }
 
 export default function LogSetSheet({
-  exerciseId,
   exerciseName,
   setNumber,
   targetReps,
   targetWeightKg,
   isBodyweight,
   onClose,
-  onLogged,
+  onLogSet,
 }: Props) {
   const [reps, setReps] = useState(String(targetReps))
   const [weight, setWeight] = useState(String(targetWeightKg))
   const [notes, setNotes] = useState("")
-  const [pending, startTransition] = useTransition()
 
   useEffect(() => {
     document.body.style.overflow = "hidden"
@@ -40,10 +36,7 @@ export default function LogSetSheet({
     const r = parseInt(reps) || 0
     const w = parseFloat(weight) || 0
     if (r <= 0) return
-    startTransition(async () => {
-      await logSet(exerciseId, setNumber, r, w, notes)
-      onLogged()
-    })
+    onLogSet(r, w, notes)
   }
 
   return (
@@ -56,7 +49,6 @@ export default function LogSetSheet({
         <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Set {setNumber}</p>
         <h2 className="text-lg font-semibold mb-5">{exerciseName}</h2>
 
-        {/* Reps + weight */}
         <div className="grid grid-cols-2 gap-3 mb-3">
           <div>
             <label className="text-xs text-muted-foreground mb-1 block">Reps</label>
@@ -83,7 +75,6 @@ export default function LogSetSheet({
           </div>
         </div>
 
-        {/* Notes */}
         <div className="mb-5">
           <label className="text-xs text-muted-foreground mb-1 block">Notes (optional)</label>
           <Input
@@ -97,10 +88,10 @@ export default function LogSetSheet({
 
         <Button
           className="w-full h-12 text-base"
-          disabled={pending || !reps || parseInt(reps) <= 0}
+          disabled={!reps || parseInt(reps) <= 0}
           onClick={handleConfirm}
         >
-          {pending ? "Saving…" : "Log set"}
+          Log set
         </Button>
       </div>
     </>
