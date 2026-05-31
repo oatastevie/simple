@@ -1,0 +1,20 @@
+services:
+  app:
+    build:
+      context: .
+      args:
+        # Baked into the client bundle — must be reachable from the browser too.
+        # On macOS Docker Desktop, host.docker.internal resolves on the host, so the
+        # browser can reach it. On Linux, add: echo "127.0.0.1 host.docker.internal"
+        # to /etc/hosts on the host machine.
+        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+    # Allows the container to reach Supabase running on the host via host.docker.internal.
+    # On macOS this is automatic; this line makes it explicit for Linux too.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
