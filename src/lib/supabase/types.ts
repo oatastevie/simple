@@ -23,6 +23,7 @@ export type Database = {
           name: string | null
           notes: string | null
           order_index: number | null
+          rest_seconds: number
           skipped: boolean | null
           target_reps: number | null
           target_sets: number | null
@@ -37,6 +38,7 @@ export type Database = {
           name?: string | null
           notes?: string | null
           order_index?: number | null
+          rest_seconds?: number
           skipped?: boolean | null
           target_reps?: number | null
           target_sets?: number | null
@@ -51,6 +53,7 @@ export type Database = {
           name?: string | null
           notes?: string | null
           order_index?: number | null
+          rest_seconds?: number
           skipped?: boolean | null
           target_reps?: number | null
           target_sets?: number | null

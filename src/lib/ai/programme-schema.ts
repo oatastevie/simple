@@ -9,6 +9,7 @@ export const ExerciseSchema = z.object({
   target_sets: z.number().int().min(1).max(8),
   target_reps: z.number().int().min(1).max(30),
   target_weight_kg: z.number().min(0),
+  rest_seconds: z.number().int().min(30).max(600),
 })
 
 // Schema without the .refine() business rule — used for JSON Schema export only.

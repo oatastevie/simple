@@ -71,6 +71,7 @@ export async function saveProgramme(
         target_sets: ex.target_sets,
         target_reps: ex.target_reps,
         target_weight_kg: ex.target_weight_kg,
+        rest_seconds: ex.rest_seconds,
         order_index: i,
         completed: false,
         skipped: false,

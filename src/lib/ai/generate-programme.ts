@@ -113,7 +113,8 @@ Output a JSON array of exactly 7 objects — one per day, starting from today. U
         "equipment": "string",
         "target_sets": 1–8,
         "target_reps": 1–30,
-        "target_weight_kg": 0–999
+        "target_weight_kg": 0–999,
+        "rest_seconds": 30–600
       }
     ]
   }
@@ -125,6 +126,7 @@ Rules:
 - target_weight_kg of 0 means bodyweight
 - Respect areas_to_avoid strictly — do not programme exercises that stress those areas
 - Use recent workout data to inform appropriate weights and avoid repeating muscle groups
+- rest_seconds: 150–180 for compound lifts (squat, deadlift, bench, row, overhead press); 60–90 for isolation exercises
 - Output only the raw JSON array — no markdown, no explanation, no code fences`
 }
 
@@ -186,7 +188,8 @@ Output a single JSON object (not an array) with this exact structure:
       "equipment": "string",
       "target_sets": 1–8,
       "target_reps": 1–30,
-      "target_weight_kg": 0–999
+      "target_weight_kg": 0–999,
+      "rest_seconds": 30–600
     }
   ]
 }
@@ -196,6 +199,7 @@ Rules:
 - target_weight_kg of 0 means bodyweight
 - Respect areas_to_avoid strictly
 - Use recent workout data to inform appropriate weights and avoid repeating muscle groups
+- rest_seconds: 150–180 for compound lifts (squat, deadlift, bench, row, overhead press); 60–90 for isolation exercises
 - Honour the special request above
 - Output only the raw JSON object — no markdown, no explanation, no code fences`
 }

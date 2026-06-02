@@ -73,6 +73,7 @@ export async function replaceDayWorkout(
     target_sets: number
     target_reps: number
     target_weight_kg: number
+    rest_seconds: number
   }>,
 ): Promise<void> {
   const supabase = await createClient()
@@ -99,6 +100,7 @@ export async function replaceDayWorkout(
       target_sets: ex.target_sets,
       target_reps: ex.target_reps,
       target_weight_kg: ex.target_weight_kg,
+      rest_seconds: ex.rest_seconds,
       order_index: i,
       completed: false,
       skipped: false,
@@ -119,7 +121,7 @@ export async function redoWorkout(pastWorkoutId: string): Promise<string> {
   // Get the past workout's exercises
   const { data: pastExercises } = await supabase
     .from("exercises")
-    .select("name, muscle_group, equipment, target_sets, target_reps, target_weight_kg, order_index")
+    .select("name, muscle_group, equipment, target_sets, target_reps, target_weight_kg, rest_seconds, order_index")
     .eq("workout_id", pastWorkoutId)
     .order("order_index", { ascending: true })
 
@@ -176,6 +178,7 @@ export async function redoWorkout(pastWorkoutId: string): Promise<string> {
       target_sets: ex.target_sets,
       target_reps: ex.target_reps,
       target_weight_kg: ex.target_weight_kg,
+      rest_seconds: ex.rest_seconds ?? 90,
       order_index: i,
       completed: false,
       skipped: false,

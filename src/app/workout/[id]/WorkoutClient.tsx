@@ -16,6 +16,7 @@ export type InitialExercise = {
   target_sets: number | null
   target_reps: number | null
   target_weight_kg: number | null
+  rest_seconds: number | null
   completed: boolean | null
   skipped: boolean | null
 }
@@ -60,6 +61,25 @@ export default function WorkoutClient({
   const [syncing, setSyncing] = useState(false)
   const [completeError, setCompleteError] = useState("")
   const flushingRef = useRef(false)
+
+  const [restTimer, setRestTimer] = useState<{ remaining: number; exerciseName: string } | null>(null)
+  const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  useEffect(() => {
+    if (timerIntervalRef.current) clearInterval(timerIntervalRef.current)
+    if (restTimer === null) return
+    if (restTimer.remaining <= 0) {
+      navigator.vibrate?.(200)
+      const t = setTimeout(() => setRestTimer(null), 1500)
+      return () => clearTimeout(t)
+    }
+    timerIntervalRef.current = setInterval(() => {
+      setRestTimer(prev => prev ? { ...prev, remaining: prev.remaining - 1 } : null)
+    }, 1000)
+    return () => {
+      if (timerIntervalRef.current) clearInterval(timerIntervalRef.current)
+    }
+  }, [restTimer?.remaining])
 
   function enqueue(op: PendingOp) {
     queueRef.current = [...queueRef.current, op]
@@ -122,6 +142,9 @@ export default function WorkoutClient({
     })
 
     if (navigator.onLine) tryFlush()
+
+    const exercise = exercises.find(e => e.id === exerciseId)
+    setRestTimer({ remaining: exercise?.rest_seconds ?? 90, exerciseName: exercise?.name ?? "" })
   }
 
   function handleSkip(exerciseId: string) {
@@ -203,6 +226,27 @@ export default function WorkoutClient({
           />
         ))}
       </div>
+
+      {restTimer !== null && (
+        <div className="fixed bottom-[88px] left-0 right-0 px-4 max-w-lg mx-auto z-30">
+          <div className="flex items-center justify-between rounded-2xl bg-card border border-border px-4 py-3 shadow-lg">
+            <div>
+              <p className="text-xs text-muted-foreground">Rest — {restTimer.exerciseName}</p>
+              <p className="text-2xl font-semibold tabular-nums">
+                {restTimer.remaining <= 0
+                  ? "Go!"
+                  : `${Math.floor(restTimer.remaining / 60)}:${String(restTimer.remaining % 60).padStart(2, "0")}`}
+              </p>
+            </div>
+            <button
+              className="h-8 w-8 rounded-full bg-muted flex items-center justify-center text-muted-foreground text-sm"
+              onClick={() => setRestTimer(null)}
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
 
       {!alreadyCompleted && (
         <div className="fixed bottom-0 left-0 right-0 px-4 pb-8 pt-4 bg-background/80 backdrop-blur max-w-lg mx-auto">
