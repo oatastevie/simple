@@ -120,6 +120,7 @@ export default function GeneratingPage() {
       {stage === "choose" && (
         <>
           <div className="mb-6">
+            <a href="/" className="text-sm text-muted-foreground mb-3 block">← Home</a>
             <h1 className="text-2xl font-semibold tracking-tight mb-1">Set up your week</h1>
             <p className="text-sm text-muted-foreground">Generate a new programme with AI, or repeat a previous week.</p>
           </div>
