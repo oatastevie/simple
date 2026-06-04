@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { buildWeekPrompt, getRecentWorkoutContext, validateWeekJson, type ValidationResult } from "@/lib/ai/generate-programme"
+import { copyToClipboard } from "@/lib/clipboard"
 import { saveProgramme, getNextWeekNumber, getPastProgrammes, repeatWeekProgramme, type PastProgramme } from "@/app/actions/programme"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
@@ -23,7 +24,9 @@ export default function GeneratingPage() {
   const [validation, setValidation] = useState<ValidationResult | null>(null)
   const [errorMsg, setErrorMsg] = useState("")
   const [pastProgrammes, setPastProgrammes] = useState<PastProgramme[]>([])
+  const [request, setRequest] = useState("")
   const profileRef = useRef<Tables<"users"> | null>(null)
+  const recentContextRef = useRef("")
   const weekNumberRef = useRef(1)
   const [repeating, startRepeat] = useTransition()
 
@@ -48,8 +51,8 @@ export default function GeneratingPage() {
       ])
 
       profileRef.current = profile
+      recentContextRef.current = recentHistory
       weekNumberRef.current = weekNumber
-      setPrompt(buildWeekPrompt(profile, recentHistory))
       setPastProgrammes(past)
       setStage("choose")
     }
@@ -61,7 +64,7 @@ export default function GeneratingPage() {
   }, [router])
 
   async function handleCopy() {
-    await navigator.clipboard.writeText(prompt)
+    await copyToClipboard(prompt)
     setCopied(true)
   }
 
@@ -125,7 +128,28 @@ export default function GeneratingPage() {
             <p className="text-sm text-muted-foreground">Generate a new programme with AI, or repeat a previous week.</p>
           </div>
 
-          <Button className="w-full mb-6" onClick={() => setStage("copy")}>
+          <div className="mb-4">
+            <label className="text-xs text-muted-foreground mb-1.5 block">
+              Any notes for this week? <span className="text-muted-foreground/60">(optional)</span>
+            </label>
+            <input
+              type="text"
+              className="w-full h-11 rounded-xl border border-border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              placeholder="e.g. start with leg day, keep it short, focus on upper body…"
+              value={request}
+              onChange={e => setRequest(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === "Enter") {
+                  setPrompt(buildWeekPrompt(profileRef.current!, recentContextRef.current, request))
+                  setStage("copy")
+                }
+              }}
+            />
+          </div>
+          <Button className="w-full mb-6" onClick={() => {
+            setPrompt(buildWeekPrompt(profileRef.current!, recentContextRef.current, request))
+            setStage("copy")
+          }}>
             Generate new week with AI →
           </Button>
 

@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { buildProgressPrompt, getProgressContext } from "@/lib/ai/generate-programme"
+import { copyToClipboard } from "@/lib/clipboard"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
@@ -31,7 +32,7 @@ export default function ProgressPage() {
   }, [router])
 
   async function handleCopy() {
-    await navigator.clipboard.writeText(prompt)
+    await copyToClipboard(prompt)
     setCopied(true)
   }
 

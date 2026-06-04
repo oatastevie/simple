@@ -143,7 +143,6 @@ export default function WorkoutClient({
 
     if (navigator.onLine) tryFlush()
 
-    const exercise = exercises.find(e => e.id === exerciseId)
     setRestTimer({ remaining: exercise?.rest_seconds ?? 90, exerciseName: exercise?.name ?? "" })
   }
 

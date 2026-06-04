@@ -188,7 +188,7 @@ Please evaluate the following and be specific — reference actual exercises, da
 Keep it honest and direct.`
 }
 
-export function buildWeekPrompt(profile: UserProfile, recentContext: string): string {
+export function buildWeekPrompt(profile: UserProfile, recentContext: string, request?: string): string {
   const level = EXPERIENCE_LEVEL[profile.lifting_frequency ?? "Never"] ?? "beginner"
   const areasToAvoid = profile.areas_to_avoid?.filter(a => a !== "None").join(", ") || "none"
 
@@ -233,7 +233,10 @@ Rules:
 - Output only the raw JSON array — no markdown, no explanation, no code fences${profile.ai_context ? `
 
 Additional instructions from the user:
-${profile.ai_context}` : ""}`
+${profile.ai_context}` : ""}${request?.trim() ? `
+
+Special request for this week:
+${request.trim()}` : ""}`
 }
 
 const WeekSchema = z.array(WorkoutDaySchema).min(7).max(7)

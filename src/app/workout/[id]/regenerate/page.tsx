@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from "react"
 import { useRouter, useParams } from "next/navigation"
 import { buildSingleDayPrompt, validateDayJson, getRecentWorkoutContext, type DayValidationResult } from "@/lib/ai/generate-programme"
+import { copyToClipboard } from "@/lib/clipboard"
 import { replaceDayWorkout } from "@/app/actions/workout"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
@@ -43,7 +44,7 @@ export default function RegenerateDayPage() {
   }
 
   async function handleCopy() {
-    await navigator.clipboard.writeText(prompt)
+    await copyToClipboard(prompt)
     setCopied(true)
   }
 
