@@ -152,6 +152,7 @@ export type Database = {
       users: {
         Row: {
           age: number | null
+          ai_context: string | null
           areas_to_avoid: string[] | null
           body_fat_percentage: number | null
           cardio_frequency: string | null
@@ -170,6 +171,7 @@ export type Database = {
         }
         Insert: {
           age?: number | null
+          ai_context?: string | null
           areas_to_avoid?: string[] | null
           body_fat_percentage?: number | null
           cardio_frequency?: string | null
@@ -188,6 +190,7 @@ export type Database = {
         }
         Update: {
           age?: number | null
+          ai_context?: string | null
           areas_to_avoid?: string[] | null
           body_fat_percentage?: number | null
           cardio_frequency?: string | null

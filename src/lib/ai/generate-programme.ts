@@ -127,7 +127,10 @@ Rules:
 - Respect areas_to_avoid strictly — do not programme exercises that stress those areas
 - Use recent workout data to inform appropriate weights and avoid repeating muscle groups
 - rest_seconds: 150–180 for compound lifts (squat, deadlift, bench, row, overhead press); 60–90 for isolation exercises
-- Output only the raw JSON array — no markdown, no explanation, no code fences`
+- Output only the raw JSON array — no markdown, no explanation, no code fences${profile.ai_context ? `
+
+Additional instructions from the user:
+${profile.ai_context}` : ""}`
 }
 
 const WeekSchema = z.array(WorkoutDaySchema).min(7).max(7)
@@ -201,7 +204,10 @@ Rules:
 - Use recent workout data to inform appropriate weights and avoid repeating muscle groups
 - rest_seconds: 150–180 for compound lifts (squat, deadlift, bench, row, overhead press); 60–90 for isolation exercises
 - Honour the special request above
-- Output only the raw JSON object — no markdown, no explanation, no code fences`
+- Output only the raw JSON object — no markdown, no explanation, no code fences${profile.ai_context ? `
+
+Additional instructions from the user:
+${profile.ai_context}` : ""}`
 }
 
 export type DayValidationResult =

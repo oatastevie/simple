@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 import DayCard from "@/app/components/DayCard"
+import AiContextEditor from "@/app/components/AiContextEditor"
 
 function formatDate(dateStr: string) {
   const d = new Date(dateStr + "T00:00:00")
@@ -26,7 +27,7 @@ export default async function Home() {
 
   const { data: profile } = await supabase
     .from("users")
-    .select("id")
+    .select("id, ai_context")
     .eq("id", user.id)
     .single()
 
@@ -110,7 +111,7 @@ export default async function Home() {
         </div>
       </div>
 
-      <div className="space-y-3">
+      <div className="space-y-3 mb-6">
         {(workouts ?? []).map(workout => {
           const exs = exercisesByWorkout[workout.id] ?? []
           const { weekday, short } = formatDate(workout.scheduled_date ?? "")
@@ -133,6 +134,8 @@ export default async function Home() {
           )
         })}
       </div>
+
+      <AiContextEditor initialValue={profile.ai_context} />
     </div>
   )
 }
