@@ -85,6 +85,109 @@ export async function getRecentWorkoutContext(): Promise<string> {
   }).join("\n\n")
 }
 
+export async function getProgressContext(): Promise<string> {
+  const supabase = createClient()
+  const cutoff = new Date()
+  cutoff.setDate(cutoff.getDate() - 56) // 8 weeks
+  const cutoffStr = cutoff.toISOString().split("T")[0]
+
+  const { data: workouts } = await supabase
+    .from("workouts")
+    .select("id, workout_type, scheduled_date, completed_at, skipped_at")
+    .gte("scheduled_date", cutoffStr)
+    .order("scheduled_date", { ascending: true })
+
+  if (!workouts?.length) return "- No workouts in the last 8 weeks"
+
+  const completedIds = workouts.filter(w => w.completed_at).map(w => w.id)
+
+  const { data: exercises } = completedIds.length
+    ? await supabase
+        .from("exercises")
+        .select("id, workout_id, name, target_sets, target_reps, target_weight_kg, completed, skipped")
+        .in("workout_id", completedIds)
+        .order("order_index", { ascending: true })
+    : { data: [] }
+
+  const exerciseIds = (exercises ?? []).map(e => e.id)
+
+  const { data: sets } = exerciseIds.length
+    ? await supabase
+        .from("sets")
+        .select("exercise_id, set_number, reps_completed, weight_kg, notes")
+        .in("exercise_id", exerciseIds)
+        .order("set_number", { ascending: true })
+    : { data: [] }
+
+  type SetRow = NonNullable<typeof sets>[number]
+  const setsByExercise = (sets ?? []).reduce<Record<string, SetRow[]>>((acc, s) => {
+    if (!s.exercise_id) return acc
+    acc[s.exercise_id] = acc[s.exercise_id] ?? []
+    acc[s.exercise_id]!.push(s)
+    return acc
+  }, {})
+
+  type ExRow = NonNullable<typeof exercises>[number]
+  const exercisesByWorkout = (exercises ?? []).reduce<Record<string, ExRow[]>>((acc, ex) => {
+    if (!ex.workout_id) return acc
+    acc[ex.workout_id] = acc[ex.workout_id] ?? []
+    acc[ex.workout_id]!.push(ex)
+    return acc
+  }, {})
+
+  return workouts.map(w => {
+    const date = new Date((w.scheduled_date ?? "") + "T00:00:00Z")
+      .toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" })
+
+    if (w.skipped_at) return `${w.workout_type} · ${date} — SKIPPED`
+    if (!w.completed_at) return `${w.workout_type} · ${date} — not completed`
+
+    const exs = exercisesByWorkout[w.id] ?? []
+    const exerciseLines = exs.map(ex => {
+      const logged = setsByExercise[ex.id] ?? []
+      const target = `target: ${ex.target_sets}×${ex.target_reps}${ex.target_weight_kg ? `@${ex.target_weight_kg}kg` : " BW"}`
+      if (!logged.length) return `  ${ex.name} (${target}) — no sets logged`
+      const setStrs = logged.map(s => {
+        const reps = s.reps_completed ?? "?"
+        const weight = s.weight_kg ? `@${s.weight_kg}kg` : "BW"
+        const note = s.notes ? ` ("${s.notes}")` : ""
+        return `${reps}${weight}${note}`
+      })
+      const status = ex.skipped ? " [skipped]" : ex.completed ? "" : " [incomplete]"
+      return `  ${ex.name}${status} (${target}): ${setStrs.join(", ")}`
+    })
+
+    return `${w.workout_type} · ${date}\n${exerciseLines.join("\n")}`
+  }).join("\n\n")
+}
+
+export function buildProgressPrompt(profile: UserProfile, progressContext: string): string {
+  const level = EXPERIENCE_LEVEL[profile.lifting_frequency ?? "Never"] ?? "beginner"
+  const areasToAvoid = profile.areas_to_avoid?.filter(a => a !== "None").join(", ") || "none"
+
+  return `You are a personal trainer reviewing a client's training log. Evaluate their progress and give actionable feedback.
+
+User profile:
+- Goal: ${profile.goal}${profile.secondary_goal ? `, secondary: ${profile.secondary_goal}` : ""}
+- Age: ${profile.age}, Sex: ${profile.sex}, Job: ${profile.job_type}
+- Lifting experience: ${profile.lifting_frequency} → ${level}
+- Height: ${profile.height}cm, Weight: ${profile.weight}kg${profile.body_fat_percentage ? `\n- Body fat: ${profile.body_fat_percentage}%` : ""}
+- Areas to avoid: ${areasToAvoid}${profile.ai_context ? `\n- Notes: ${profile.ai_context}` : ""}
+
+Training log (last 8 weeks, oldest first):
+${progressContext}
+
+Please evaluate the following and be specific — reference actual exercises, dates, and numbers from the log above:
+
+1. **Consistency** — how regularly are they training? Any patterns of missed or skipped sessions?
+2. **Progression** — are weights or reps increasing over time on key exercises?
+3. **Volume & balance** — is push/pull/legs balanced? Any muscle groups being under-trained?
+4. **Weak points** — which exercises are falling short of targets consistently?
+5. **Recommendations** — 3–5 concrete, prioritised actions to improve results
+
+Keep it honest and direct.`
+}
+
 export function buildWeekPrompt(profile: UserProfile, recentContext: string): string {
   const level = EXPERIENCE_LEVEL[profile.lifting_frequency ?? "Never"] ?? "beginner"
   const areasToAvoid = profile.areas_to_avoid?.filter(a => a !== "None").join(", ") || "none"

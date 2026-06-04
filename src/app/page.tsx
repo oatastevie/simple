@@ -105,6 +105,9 @@ export default async function Home() {
           <a href="/history" className="text-sm text-muted-foreground underline underline-offset-4">
             History
           </a>
+          <a href="/progress" className="text-sm text-muted-foreground underline underline-offset-4">
+            Progress
+          </a>
           <a href="/onboarding/generating" className="text-sm text-muted-foreground underline underline-offset-4">
             Regenerate
           </a>
