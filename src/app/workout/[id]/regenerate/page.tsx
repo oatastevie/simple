@@ -66,8 +66,8 @@ export default function RegenerateDayPage() {
 
   return (
     <div className="min-h-screen flex flex-col px-4 pt-8 pb-8 max-w-lg mx-auto w-full">
-      <Link href={`/workout/${id}`} className="text-sm text-muted-foreground mb-6 inline-block">
-        ← Back
+      <Link href="/" className="text-sm text-muted-foreground mb-6 inline-block">
+        ← Home
       </Link>
 
       <h1 className="text-2xl font-semibold tracking-tight mb-1">Regenerate day</h1>

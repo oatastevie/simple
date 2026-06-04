@@ -153,6 +153,16 @@ export default function DayCard({
           </div>
         </div>
       )}
+      {(isRest || isSkipped) && !completedAt && (
+        <div className="mt-3">
+          <Link
+            href={`/workout/${workoutId}/regenerate`}
+            className="text-xs text-muted-foreground underline underline-offset-2"
+          >
+            Regenerate →
+          </Link>
+        </div>
+      )}
       {completedAt && !isSkipped && (
         <div className="mt-3">
           <Link href={`/workout/${workoutId}`} className="text-xs text-muted-foreground underline underline-offset-2">
