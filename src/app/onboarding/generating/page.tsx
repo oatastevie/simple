@@ -1,14 +1,18 @@
 "use client"
 
-import { useEffect, useState, useRef } from "react"
+import { useEffect, useState, useRef, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { buildWeekPrompt, getRecentWorkoutContext, validateWeekJson, type ValidationResult } from "@/lib/ai/generate-programme"
-import { saveProgramme, getNextWeekNumber } from "@/app/actions/programme"
+import { saveProgramme, getNextWeekNumber, getPastProgrammes, repeatWeekProgramme, type PastProgramme } from "@/app/actions/programme"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import type { Tables } from "@/lib/supabase/types"
 
-type Stage = "loading" | "copy" | "paste" | "saving" | "error"
+const WORKOUT_LABELS: Record<string, string> = {
+  push: "Push", pull: "Pull", legs: "Legs", rest: "Rest",
+}
+
+type Stage = "loading" | "choose" | "copy" | "paste" | "saving" | "error"
 
 export default function GeneratingPage() {
   const router = useRouter()
@@ -18,8 +22,10 @@ export default function GeneratingPage() {
   const [pasted, setPasted] = useState("")
   const [validation, setValidation] = useState<ValidationResult | null>(null)
   const [errorMsg, setErrorMsg] = useState("")
+  const [pastProgrammes, setPastProgrammes] = useState<PastProgramme[]>([])
   const profileRef = useRef<Tables<"users"> | null>(null)
   const weekNumberRef = useRef(1)
+  const [repeating, startRepeat] = useTransition()
 
   useEffect(() => {
     async function init() {
@@ -35,15 +41,17 @@ export default function GeneratingPage() {
 
       if (!profile) { router.push("/onboarding"); return }
 
-      const [recentHistory, weekNumber] = await Promise.all([
+      const [recentHistory, weekNumber, past] = await Promise.all([
         getRecentWorkoutContext(),
         getNextWeekNumber(user.id),
+        getPastProgrammes(),
       ])
 
       profileRef.current = profile
       weekNumberRef.current = weekNumber
       setPrompt(buildWeekPrompt(profile, recentHistory))
-      setStage("copy")
+      setPastProgrammes(past)
+      setStage("choose")
     }
 
     init().catch(err => {
@@ -78,12 +86,22 @@ export default function GeneratingPage() {
     }
   }
 
+  function handleRepeat(programmeId: string) {
+    startRepeat(async () => {
+      await repeatWeekProgramme(programmeId)
+    })
+  }
+
   if (stage === "loading") {
     return <Centered><p className="text-muted-foreground">Loading your profile…</p></Centered>
   }
 
   if (stage === "saving") {
     return <Centered><p className="text-muted-foreground">Saving your programme…</p></Centered>
+  }
+
+  if (repeating) {
+    return <Centered><p className="text-muted-foreground">Copying week…</p></Centered>
   }
 
   if (stage === "error") {
@@ -99,9 +117,51 @@ export default function GeneratingPage() {
 
   return (
     <div className="min-h-screen flex flex-col px-4 pt-8 pb-8 max-w-lg mx-auto w-full">
+      {stage === "choose" && (
+        <>
+          <div className="mb-6">
+            <h1 className="text-2xl font-semibold tracking-tight mb-1">Set up your week</h1>
+            <p className="text-sm text-muted-foreground">Generate a new programme with AI, or repeat a previous week.</p>
+          </div>
+
+          <Button className="w-full mb-6" onClick={() => setStage("copy")}>
+            Generate new week with AI →
+          </Button>
+
+          {pastProgrammes.length > 0 && (
+            <>
+              <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-3">Previous weeks</p>
+              <div className="space-y-2">
+                {pastProgrammes.map(p => (
+                  <div key={p.id} className="flex items-center justify-between rounded-2xl border border-border bg-card px-4 py-3">
+                    <div>
+                      <p className="text-sm font-medium">Week {p.weekNumber}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {p.workoutTypes.map(t => WORKOUT_LABELS[t] ?? t).join(" · ")}
+                      </p>
+                      {p.createdAt && (
+                        <p className="text-xs text-muted-foreground/60 mt-0.5">
+                          {new Date(p.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
+                        </p>
+                      )}
+                    </div>
+                    <Button size="sm" variant="outline" onClick={() => handleRepeat(p.id)}>
+                      Use this week
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </>
+      )}
+
       {stage === "copy" && (
         <>
           <div className="mb-6">
+            <button className="text-sm text-muted-foreground mb-3 block" onClick={() => setStage("choose")}>
+              ← Back
+            </button>
             <h1 className="text-2xl font-semibold tracking-tight mb-1">Generate your programme</h1>
             <p className="text-sm text-muted-foreground">
               Copy this prompt, paste it into{" "}
